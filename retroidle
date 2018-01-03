@@ -1,0 +1,62 @@
+#!/bin/bash
+# This script watches /proc/interrupts for incrementing pinctrl
+# The gpio pinctrl interupts are used by retrogame
+# Currently it sums all lines matching pinctrl.
+# Change the awk pattern to only match specific pins
+# Can be used with any interrupts. Just change the awk search pattern
+# Run from rc.local. /usr/local/bin/retroidle &
+
+# idle_max=number of seconds of no interupts before idle
+idle_max=7200
+
+idle_start()
+{
+        #Code to execute when idle
+        #echo "IDLE START"
+        #/usr/local/bin/idlestart
+
+}
+
+idle_end()
+{
+        #Code to execute when off idle
+        #echo "IDLE DONE"
+        #/usr/local/bin/idleend
+}
+
+idle_while()
+{
+        #Code to run while idling
+        #Will run once a second
+        #/usr/local/bin/ledblink
+}
+
+idlecount=0
+idling=false
+
+while true;do
+        ints_last=$ints_now
+        ints_now=`awk ' /pinctrl/{total+=$2} END {print total}' < /proc/interrupts`
+        sleep 1
+
+        if [ "$ints_last" == "$ints_now" ] ; then
+                ((idlecount++))
+        else
+                if [ "$idling" == "true" ] ; then
+                        idling=false
+                        idlecount=0
+                        idle_end
+                fi
+        fi
+
+        if [ $idlecount -ge $idle_max ] ; then
+                idlecount=$idle_max
+                if [ "$idling" == "false" ] ; then
+                        idling=true
+                        idle_start
+                else
+                        idle_while
+                fi
+        fi
+
+done
